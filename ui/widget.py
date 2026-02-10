@@ -6,8 +6,9 @@ from PyQt5.QtCore import (
     QThread, pyqtSignal, Qt, QPoint, QRectF
 )
 from PyQt5.QtGui import (
-    QFont, QPainter, QPainterPath
+    QFont, QPainter, QPainterPath, QPixmap
 )
+import os
 
 from core.promptEngine import PromptEngine
 from core.llmEngine import get_llm
@@ -39,7 +40,7 @@ class ScriptEaseWidget(QWidget):
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(520, 480)
+        self.setFixedSize(520, 560)
         self.setStyleSheet(self._main_style())
 
         self.llm = get_llm()
@@ -79,13 +80,8 @@ class ScriptEaseWidget(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(12)
 
+        # Top-right window buttons
         header = QHBoxLayout()
-
-        title = QLabel("🤖  ScriptEase")
-        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        title.setStyleSheet("color:#1e293b; border:none;")
-
-        header.addWidget(title)
         header.addStretch()
 
         self.min_btn = QPushButton("–")
@@ -105,6 +101,35 @@ class ScriptEaseWidget(QWidget):
         header.addWidget(self.close_btn)
         layout.addLayout(header)
 
+        # Robo (left) + title (right), bottom touching input box
+        robo_input_layout = QVBoxLayout()
+        robo_input_layout.setSpacing(0)
+        robo_input_layout.setContentsMargins(0, 0, 0, 0)
+
+        robo_title_row = QHBoxLayout()
+        robo_title_row.setContentsMargins(0, 0, 0, 0)
+
+        robo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "robo.png")
+        robo_pixmap = QPixmap(robo_path)
+        if not robo_pixmap.isNull():
+            robo_pixmap = robo_pixmap.scaledToHeight(80, Qt.SmoothTransformation)
+        self.robo_label = QLabel()
+        self.robo_label.setPixmap(robo_pixmap)
+        self.robo_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        self.robo_label.setStyleSheet("border:none; background:transparent;")
+        self.robo_label.setContentsMargins(0, 0, 0, 0)
+        robo_title_row.addWidget(self.robo_label)
+
+        title = QLabel("ScriptEase")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        title.setStyleSheet("color:#1e293b; border:none; background:transparent;")
+        title.setContentsMargins(4, 0, 0, 8)
+        robo_title_row.addWidget(title)
+        robo_title_row.addStretch()
+
+        robo_input_layout.addLayout(robo_title_row)
+
         box_font = QFont("Segoe UI", 12)
         BOX_H = 120
 
@@ -113,14 +138,16 @@ class ScriptEaseWidget(QWidget):
         self.input_box.setFixedHeight(BOX_H)
         self.input_box.setPlaceholderText("Clipboard text will appear here…")
         self.input_box.setStyleSheet(self._textbox_style())
-        layout.addWidget(self.input_box)
+        robo_input_layout.addWidget(self.input_box)
+
+        layout.addLayout(robo_input_layout)
 
         btn_row = QHBoxLayout()
         btn_font = QFont("Segoe UI", 12, QFont.Bold)
 
-        self.rewrite_btn = QPushButton("🔁  Rewrite")
-        self.summarize_btn = QPushButton("📄  Summarize")
-        self.improve_btn = QPushButton("✨  Improve")
+        self.rewrite_btn = QPushButton("Rewrite")
+        self.summarize_btn = QPushButton("Summarize")
+        self.improve_btn = QPushButton("Improve")
 
         for btn in (self.rewrite_btn, self.summarize_btn, self.improve_btn):
             btn.setFont(btn_font)
@@ -150,7 +177,7 @@ class ScriptEaseWidget(QWidget):
 
         bottom = QHBoxLayout()
 
-        self.copy_btn = QPushButton("📋  Copy Output")
+        self.copy_btn = QPushButton("Copy Output")
         self.copy_btn.setFont(btn_font)
         self.copy_btn.setFixedHeight(48)
         self.copy_btn.setMinimumWidth(360)
