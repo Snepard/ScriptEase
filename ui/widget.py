@@ -14,8 +14,6 @@ from core.promptEngine import PromptEngine
 from core.llmEngine import get_llm
 
 
-# BACKGROUND WORKER
-
 class LLMWorker(QThread):
     finished = pyqtSignal(str)
 
@@ -29,16 +27,12 @@ class LLMWorker(QThread):
         self.finished.emit(result)
 
 
-# MAIN WIDGET
-
 class ScriptEaseWidget(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setObjectName("ScriptEaseRoot")
-        self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-        )
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(520, 560)
         self.setStyleSheet(self._main_style())
@@ -48,6 +42,7 @@ class ScriptEaseWidget(QWidget):
         self.worker = None
         self._drag_pos = QPoint()
         self._internal_clipboard_change = False
+
         self._build_ui()
         self._setup_clipboard_listener()
 
@@ -58,7 +53,6 @@ class ScriptEaseWidget(QWidget):
     def _on_clipboard_change(self):
         if self._internal_clipboard_change:
             return
-
         text = self.clipboard.text().strip()
         if text:
             self.input_box.setPlainText(text)
@@ -66,69 +60,71 @@ class ScriptEaseWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-
         rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
         path = QPainterPath()
         path.addRoundedRect(rect, 22, 22)
-
         painter.fillPath(path, self.palette().window())
 
-    # UI
+    def resizeEvent(self, event):
+        self.min_btn.move(self.width() - 74, 8)
+        self.close_btn.move(self.width() - 38, 8)
+        super().resizeEvent(event)
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(12)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(14, 0, 14, 14)
+        main_layout.setSpacing(0)
 
-        # Top-right window buttons
-        header = QHBoxLayout()
-        header.addStretch()
-
-        self.min_btn = QPushButton("–")
-        self.close_btn = QPushButton("✕")
+        self.min_btn = QPushButton("–", self)
+        self.close_btn = QPushButton("✕", self)
 
         for btn in (self.min_btn, self.close_btn):
             btn.setFixedSize(30, 30)
-            btn.setStyleSheet(self._header_btn())
             btn.setCursor(Qt.PointingHandCursor)
 
+        self.min_btn.setStyleSheet(self._header_btn())
         self.close_btn.setStyleSheet(self._header_btn(close=True))
 
         self.min_btn.clicked.connect(self.showMinimized)
         self.close_btn.clicked.connect(self.close)
 
-        header.addWidget(self.min_btn)
-        header.addWidget(self.close_btn)
-        layout.addLayout(header)
+        main_layout.addSpacing(20)
 
-        # Robo (left) + title (right), bottom touching input box
-        robo_input_layout = QVBoxLayout()
-        robo_input_layout.setSpacing(0)
-        robo_input_layout.setContentsMargins(0, 0, 0, 0)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(10)
 
-        robo_title_row = QHBoxLayout()
-        robo_title_row.setContentsMargins(0, 0, 0, 0)
+        robo_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "robo.png"
+        )
 
-        robo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "robo.png")
         robo_pixmap = QPixmap(robo_path)
         if not robo_pixmap.isNull():
-            robo_pixmap = robo_pixmap.scaledToHeight(80, Qt.SmoothTransformation)
+            robo_pixmap = robo_pixmap.scaledToHeight(110, Qt.SmoothTransformation)
+
         self.robo_label = QLabel()
         self.robo_label.setPixmap(robo_pixmap)
         self.robo_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        self.robo_label.setStyleSheet("border:none; background:transparent;")
-        self.robo_label.setContentsMargins(0, 0, 0, 0)
-        robo_title_row.addWidget(self.robo_label)
+        self.robo_label.setStyleSheet("border:none;background:transparent;")
+
+        header_row.addWidget(self.robo_label)
 
         title = QLabel("ScriptEase")
-        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
-        title.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        title.setStyleSheet("color:#1e293b; border:none; background:transparent;")
-        title.setContentsMargins(4, 0, 0, 8)
-        robo_title_row.addWidget(title)
-        robo_title_row.addStretch()
+        title.setFont(QFont("Segoe UI", 28, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color:#1e293b;border:none;background:transparent;")
 
-        robo_input_layout.addLayout(robo_title_row)
+        title_container = QVBoxLayout()
+        title_container.setContentsMargins(0, 0, 0, 0)
+        title_container.addStretch()
+        title_container.addWidget(title)
+        title_container.addStretch()
+
+        header_row.addLayout(title_container)
+        header_row.addStretch()
+
+        main_layout.addLayout(header_row)
 
         box_font = QFont("Segoe UI", 12)
         BOX_H = 120
@@ -138,11 +134,13 @@ class ScriptEaseWidget(QWidget):
         self.input_box.setFixedHeight(BOX_H)
         self.input_box.setPlaceholderText("Clipboard text will appear here…")
         self.input_box.setStyleSheet(self._textbox_style())
-        robo_input_layout.addWidget(self.input_box)
 
-        layout.addLayout(robo_input_layout)
+        main_layout.addWidget(self.input_box)
+        main_layout.addSpacing(12)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
         btn_font = QFont("Segoe UI", 12, QFont.Bold)
 
         self.rewrite_btn = QPushButton("Rewrite")
@@ -165,7 +163,9 @@ class ScriptEaseWidget(QWidget):
         btn_row.addWidget(self.rewrite_btn)
         btn_row.addWidget(self.summarize_btn)
         btn_row.addWidget(self.improve_btn)
-        layout.addLayout(btn_row)
+
+        main_layout.addLayout(btn_row)
+        main_layout.addSpacing(12)
 
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
@@ -173,32 +173,26 @@ class ScriptEaseWidget(QWidget):
         self.output_box.setFixedHeight(BOX_H)
         self.output_box.setPlaceholderText("Output will appear here…")
         self.output_box.setStyleSheet(self._textbox_style())
-        layout.addWidget(self.output_box)
 
-        bottom = QHBoxLayout()
+        main_layout.addWidget(self.output_box)
+        main_layout.addSpacing(14)
 
         self.copy_btn = QPushButton("Copy Output")
         self.copy_btn.setFont(btn_font)
         self.copy_btn.setFixedHeight(48)
-        self.copy_btn.setMinimumWidth(360)
         self.copy_btn.setStyleSheet(self._copy_btn())
         self.copy_btn.setCursor(Qt.PointingHandCursor)
         self.copy_btn.clicked.connect(self.copy_output)
 
-        bottom.addWidget(self.copy_btn)
-        layout.addLayout(bottom)
-
-    # TASK
+        main_layout.addWidget(self.copy_btn)
 
     def run_task(self, task):
         text = self.input_box.toPlainText().strip()
         if not text:
             self.output_box.setText("⚠️ Input is empty.")
             return
-
         self.output_box.setText("Thinking… ⏳")
         prompt = self.prompt_engine.build(task, text)
-
         self.worker = LLMWorker(self.llm, prompt)
         self.worker.finished.connect(self.on_result_ready)
         self.worker.start()
@@ -227,8 +221,6 @@ class ScriptEaseWidget(QWidget):
     def mouseMoveEvent(self, e):
         if e.buttons() == Qt.LeftButton:
             self.move(e.globalPos() - self._drag_pos)
-
-    # STYLES
 
     def _main_style(self):
         return """
